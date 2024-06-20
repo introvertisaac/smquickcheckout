@@ -49,23 +49,34 @@ app.get('/locations', async (req, res) => {
 });
 
 // Endpoint to get assets assigned to a user
+
 app.get('/users/:userId/assets', async (req, res) => {
     const userId = req.params.userId;
     try {
         const response = await axios.get(`${API_URL}/hardware`, {
             headers: getHeaders(),
             params: {
-                assigned_to: userId, // Filter assets assigned to the specified user
-                limit: 1000  // Adjust as necessary
+                assigned_to: userId, // This should filter assets assigned to the specified user
+                limit: 1000 // Adjust limit as necessary
             }
         });
-        const userAssets = response.data.rows.filter(asset => asset.assigned_to === parseInt(userId));
+
+        // Debug log the response data
+        console.log("API Response Data:", response.data);
+
+        // The API may return a data structure where assigned_to is an object, not just an ID.
+        // Ensure we're checking against the correct property.
+        const userAssets = response.data.rows.filter(asset => {
+            return asset.assigned_to && asset.assigned_to.id === parseInt(userId);
+        });
+
         res.json({ total: userAssets.length, rows: userAssets });
     } catch (error) {
         console.error('Error fetching assets for user:', error);
         res.status(500).json({ error: 'Error fetching checked-out assets count' });
     }
 });
+
 
 app.post('/checkout', async (req, res) => {
     const { asset_id, user_id, checkout_at, expected_checkin } = req.body;

@@ -117,16 +117,22 @@
     }
 
     async function updateCheckedOutCount(userId) {
-        try {
-            const response = await fetch(`${API_URL}/users/${userId}/assets`);
-            const data = await response.json();
-            const count = data.total || data.rows.length;
-            $('#checked-out-count').text(`Assets checked out to this user: ${count}`);
-        } catch (error) {
-            console.error('Error fetching checked-out assets count:', error);
-            $('#checked-out-count').text('Error fetching checked-out assets count');
-        }
+    try {
+        const response = await fetch(`${API_URL}/users/${userId}/assets`);
+        const data = await response.json();
+        console.log("Response Data:", data); // Debug log to see the response from the API
+
+        // Check if the response contains the assets assigned to the user
+        const count = data.total || (data.rows ? data.rows.length : 0);
+
+        // Display the count of checked-out assets
+        $('#checked-out-count').text(`Assets checked out to this user: ${count}`);
+    } catch (error) {
+        console.error('Error fetching checked-out assets count:', error);
+        $('#checked-out-count').text('Error fetching checked-out assets count');
     }
+}
+
 
     $('#checkin-button').click(function() {
         performCheckoutOrCheckin('checkin');
