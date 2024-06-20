@@ -1,0 +1,162 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Snipe-IT Checkout</title>
+    <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.3.1/css/bootstrap.min.css">
+</head>
+<body>
+    <div class="container mt-5">
+        <h1 class="text-center">Snipe-IT Checkout</h1>
+        <form id="checkout-form">
+            <div class="form-group">
+                <label for="user">Select User:</label>
+                <select class="form-control" id="user" required></select>
+            </div>
+            <div class="form-group">
+                <label for="location">Select Location:</label>
+                <select class="form-control" id="location" required></select>
+            </div>
+            <div class="form-group">
+                <label for="checkout-at">Checkout Date:</label>
+                <input type="date" class="form-control" id="checkout-at" required>
+            </div>
+            <div class="form-group">
+                <label for="expected-checkin">Expected Checkin Date:</label>
+                <input type="date" class="form-control" id="expected-checkin" required>
+            </div>
+            <div class="form-group">
+                <label for="qr-code">Scan QR Code:</label>
+                <input type="text" class="form-control" id="qr-code" autofocus>
+            </div>
+            <div class="form-group">
+                <button type="button" id="go-to-checkin-button" class="btn btn-primary">Go to Checkin</button>
+
+                <button type="button" id="checkout-button" class="btn btn-success">Checkout</button>
+            </div>
+        </form>
+
+        <!-- Div to show the number of assets checked out to the user -->
+        <div id="checked-out-count" class="mt-3">Select a user to see the checked-out assets count</div>
+
+        <div id="results"></div>
+    </div>
+    <script src="https://code.jquery.com/jquery-3.4.1.min.js"></script>
+    <script>
+        $(document).ready(function() {
+    const API_URL = 'http://localhost:3000';
+
+    async function fetchUsers() {
+        const response = await fetch(`${API_URL}/users`);
+        const data = await response.json();
+        data.rows.forEach(user => {
+            $('#user').append(`<option value="${user.id}">${user.name}</option>`);
+        });
+    }
+
+    async function fetchLocations() {
+        const response = await fetch(`${API_URL}/locations`);
+        const data = await response.json();
+        data.rows.forEach(location => {
+            $('#location').append(`<option value="${location.id}">${location.name}</option>`);
+        });
+    }
+
+    function extractAssetId(url) {
+        const match = url.match(/\/hardware\/(\d+)/);
+        if (match) {
+            return `00${match[1]}`; // Format to 5-digit asset number
+        }
+        return null;
+    }
+
+    document.getElementById('go-to-checkin-button').addEventListener('click', function() {
+    window.location.href = 'checkin.html';
+});
+
+
+    function performCheckoutOrCheckin(type) {
+        const userId = $('#user').val();
+        const checkoutAt = $('#checkout-at').val();
+        const expectedCheckin = $('#expected-checkin').val();
+        const qrCode = $('#qr-code').val();
+        const assetId = extractAssetId(qrCode);
+        const apiEndpoint = type === 'checkout' ? 'checkout' : 'checkin';
+
+        if (assetId) {
+            $.ajax({
+                url: `${API_URL}/${apiEndpoint}`,
+                method: 'POST',
+                contentType: 'application/json',
+                data: JSON.stringify({
+                    asset_id: assetId,
+                    user_id: userId,
+                    checkout_at: checkoutAt,
+                    expected_checkin: expectedCheckin
+                }),
+                success: function(response) {
+                    if (response.status === 'error') {
+                        $('#results').append(`<div class="alert alert-danger">${type} failed for asset ID: ${assetId}. Error: ${response.messages}</div>`);
+                    } else {
+                        $('#results').append(`<div class="alert alert-success">${type} successful for asset ID: ${assetId}</div>`);
+                        updateCheckedOutCount(userId); // Update the counter after a successful operation
+                    }
+                },
+                error: function(err) {
+                    console.error(err);
+                    const errorMessage = err.responseJSON ? err.responseJSON.error : 'Unknown error';
+                    $('#results').append(`<div class="alert alert-danger">${type} failed for asset ID: ${assetId}. Error: ${errorMessage}</div>`);
+                }
+            });
+        } else {
+            $('#results').append(`<div class="alert alert-warning">Invalid QR code format.</div>`);
+        }
+
+        $('#qr-code').val('').focus();
+    }
+
+    async function updateCheckedOutCount(userId) {
+        try {
+            const response = await fetch(`${API_URL}/users/${userId}/assets`);
+            const data = await response.json();
+            const count = data.total || data.rows.length;
+            $('#checked-out-count').text(`Assets checked out to this user: ${count}`);
+        } catch (error) {
+            console.error('Error fetching checked-out assets count:', error);
+            $('#checked-out-count').text('Error fetching checked-out assets count');
+        }
+    }
+
+    $('#checkin-button').click(function() {
+        performCheckoutOrCheckin('checkin');
+    });
+
+    $('#checkout-button').click(function() {
+        performCheckoutOrCheckin('checkout');
+    });
+
+    $('#qr-code').on('keydown', function(event) {
+        if (event.key === 'Enter') {
+            event.preventDefault();
+            performCheckoutOrCheckin('checkout');
+        }
+    });
+
+    $('#user').change(function() {
+        const userId = $(this).val();
+        if (userId) {
+            updateCheckedOutCount(userId);
+        } else {
+            $('#checked-out-count').text('Select a user to see the checked-out assets count');
+        }
+    });
+
+    fetchUsers();
+    fetchLocations();
+});
+
+    </script>
+    
+</body>
+</html>
