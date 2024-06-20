@@ -29,12 +29,24 @@
                 <button type="button" id="checkin-button" class="btn btn-primary">Checkin</button>
             </div>
         </form>
+
+        <!-- Dropdown to show detailed assets checked out to the user -->
+        <div class="form-group mt-3">
+            <label for="checked-out-assets">Checked Out Assets:</label>
+            <select class="form-control" id="checked-out-assets">
+                <option value="">Select a user to see the checked-out assets</option>
+            </select>
+        </div>
+
+        <!-- Div to show the number of assets checked out to the user -->
+        <div id="checked-out-count" class="mt-3">Select a user to see the checked-out assets count</div>
+
         <div id="results"></div>
     </div>
     <script src="https://code.jquery.com/jquery-3.4.1.min.js"></script>
     <script>
         $(document).ready(function() {
-            const API_URL = 'http://localhost:3000';
+            const API_URL = 'https://localhost:3000';
 
             async function fetchUsers() {
                 try {
@@ -46,6 +58,32 @@
                 } catch (error) {
                     console.error('Error fetching users:', error);
                     $('#results').append('<div class="alert alert-danger">Failed to load users.</div>');
+                }
+            }
+
+            async function updateCheckedOutCountAndAssets(userId) {
+                try {
+                    const response = await fetch(`${API_URL}/users/${userId}/assets`);
+                    const data = await response.json();
+                    console.log("Response Data:", data); // Debug log to see the response from the API
+
+                    const count = data.total || (data.rows ? data.rows.length : 0);
+                    $('#checked-out-count').text(`Assets checked out to this user: ${count}`);
+
+                    // Clear the dropdown before populating it
+                    $('#checked-out-assets').empty();
+
+                    if (count > 0) {
+                        data.rows.forEach(asset => {
+                            $('#checked-out-assets').append(`<option value="${asset.id}">Asset ID: ${asset.id}, Serial: ${asset.serial}, Name: ${asset.name}</option>`);
+                        });
+                    } else {
+                        $('#checked-out-assets').append('<option value="">No assets checked out</option>');
+                    }
+                } catch (error) {
+                    console.error('Error fetching checked-out assets:', error);
+                    $('#checked-out-count').text('Error fetching checked-out assets count');
+                    $('#checked-out-assets').empty().append('<option value="">Error fetching assets</option>');
                 }
             }
 
@@ -78,6 +116,7 @@
                                 $('#results').append(`<div class="alert alert-danger">Checkin failed for asset ID: ${assetId}. Error: ${response.messages}</div>`);
                             } else {
                                 $('#results').append(`<div class="alert alert-success">Checkin successful for asset ID: ${assetId}</div>`);
+                                updateCheckedOutCountAndAssets(userId); // Update the counter and assets list after a successful checkin
                             }
                         },
                         error: function(err) {
@@ -101,6 +140,16 @@
                 if (event.key === 'Enter') {
                     event.preventDefault();
                     performCheckin();
+                }
+            });
+
+            $('#user').change(function() {
+                const userId = $(this).val();
+                if (userId) {
+                    updateCheckedOutCountAndAssets(userId);
+                } else {
+                    $('#checked-out-count').text('Select a user to see the checked-out assets count');
+                    $('#checked-out-assets').empty().append('<option value="">Select a user to see the checked-out assets</option>');
                 }
             });
 
