@@ -93,126 +93,110 @@
             const API_URL = 'https://smquickcheckout.onrender.com';
 
             async function fetchUsers() {
-                const response = await fetch(`${API_URL}/users`);
-                const data = await response.json();
-                data.rows.forEach(user => {
-                    $('#user').append(`<option value="${user.id}">${user.name}</option>`);
-                });
-            }
-
-            async function fetchLocations() {
-                const response = await fetch(`${API_URL}/locations`);
-                const data = await response.json();
-                data.rows.forEach(location => {
-                    $('#location').append(`<option value="${location.id}">${location.name}</option>`);
-                });
-            }
-
-            async function updateCheckedOutCountAndAssets(userId) {
-                try {
-                    const response = await fetch(`${API_URL}/users/${userId}/assets`);
-                    const data = await response.json();
-
-                    // Check if the response contains the assets assigned to the user
-                    const count = data.total || (data.rows ? data.rows.length : 0);
-
-                    // Display the count of checked-out assets
-                    $('#checked-out-count').text(`Assets checked out to this user: ${count}`);
-
-                    // Clear the dropdown before populating it
-                    $('#checked-out-assets').empty();
-
-                    if (count > 0) {
-                        data.rows.forEach(asset => {
-                            $('#checked-out-assets').append(`<option value="${asset.id}">Asset ID: ${asset.id}, Serial: ${asset.serial}, Name: ${asset.name}</option>`);
-                        });
-                    } else {
-                        $('#checked-out-assets').append('<option value="">No assets checked out</option>');
-                    }
-                } catch (error) {
-                    console.error('Error fetching checked-out assets:', error);
-                    $('#checked-out-count').text('Error fetching checked-out assets count');
-                    $('#checked-out-assets').empty().append('<option value="">Error fetching assets</option>');
-                }
-            }
-
-            function extractAssetId(url) {
-                const match = url.match(/\/hardware\/(\d+)/);
-                if (match) {
-                    return `00${match[1]}`; // Format to 5-digit asset number
-                }
-                return null;
-            }
-
-            function performCheckout() {
-                const userId = $('#user').val();
-                const locationId = $('#location').val();
-                const checkoutAt = $('#checkout-at').val();
-                const expectedCheckin = $('#expected-checkin').val();
-                const qrCode = $('#qr-code').val();
-                const assetId = extractAssetId(qrCode);
-
-                if (assetId) {
-                    $.ajax({
-                        url: `${API_URL}/checkout`,
-                        method: 'POST',
-                        contentType: 'application/json',
-                        data: JSON.stringify({
-                            asset_id: assetId,
-                            user_id: userId,
-                            location_id: locationId,
-                            checkout_at: checkoutAt,
-                            expected_checkin: expectedCheckin
-                        }),
-                        success: function(response) {
-                            if (response.status === 'error') {
-                                $('#results').append(`<div class="alert alert-danger">Checkout failed for asset ID: ${assetId}. Error: ${response.messages}</div>`);
-                            } else {
-                                $('#results').append(`<div class="alert alert-success">Checkout successful for asset ID: ${assetId}</div>`);
-                                updateCheckedOutCountAndAssets(userId); // Update the counter and assets list after a successful checkout
-                            }
-                        },
-                        error: function(err) {
-                            console.error('Checkout error:', err);
-                            const errorMessage = err.responseJSON ? err.responseJSON.error : 'Unknown error';
-                            $('#results').append(`<div class="alert alert-danger">Checkout failed for asset ID: ${assetId}. Error: ${errorMessage}</div>`);
-                        }
-                    });
-                } else {
-                    $('#results').append(`<div class="alert alert-warning">Invalid QR code format.</div>`);
-                }
-
-                $('#qr-code').val('').focus();
-            }
-
-            $('#checkout-button').click(function() {
-                performCheckout();
-            });
-
-            $('#qr-code').on('keydown', function(event) {
-                if (event.key === 'Enter') {
-                    event.preventDefault();
-                    performCheckout();
-                }
-            });
-
-            $('#user').change(function() {
-                const userId = $(this).val();
-                if (userId) {
-                    updateCheckedOutCountAndAssets(userId);
-                } else {
-                    $('#checked-out-count').text('Select a user to see the checked-out assets count');
-                    $('#checked-out-assets').empty().append('<option value="">Select a user to see the checked-out assets</option>');
-                }
-            });
-
-            $('#go-to-checkin-button').click(function() {
-                window.location.href = 'checkin.html';
-            });
-
-            fetchUsers();
-            fetchLocations();
+        const response = await fetch(`${API_URL}/users`);
+        const data = await response.json();
+        data.rows.forEach(user => {
+            $('#user').append(`<option value="${user.id}">${user.name}</option>`);
         });
+    }
+
+    async function fetchLocations() {
+        const response = await fetch(`${API_URL}/locations`);
+        const data = await response.json();
+        data.rows.forEach(location => {
+            $('#location').append(`<option value="${location.id}">${location.name}</option>`);
+        });
+    }
+
+    function extractAssetId(url) {
+        console.log('Scanned QR code:', url);
+        const match = url.match(/\/hardware\/(\d+)/);
+        if (match) {
+            const assetId = match[1].padStart(5, '0'); // Format to 5-digit asset number
+            console.log('Extracted asset ID:', assetId);
+            return assetId;
+        }
+        console.log('Failed to extract asset ID from QR code');
+        return null;
+    }
+
+    function performCheckoutOrCheckin(type) {
+        const userId = $('#user').val();
+        const checkoutAt = $('#checkout-at').val();
+        const expectedCheckin = $('#expected-checkin').val();
+        const qrCode = $('#qr-code').val();
+        const assetId = extractAssetId(qrCode);
+        const apiEndpoint = type === 'checkout' ? 'checkout' : 'checkin';
+
+        console.log('Performing', type, 'with asset ID:', assetId, 'for user ID:', userId);
+
+        if (assetId) {
+            $.ajax({
+                url: `${API_URL}/${apiEndpoint}`,
+                method: 'POST',
+                contentType: 'application/json',
+                data: JSON.stringify({
+                    asset_id: assetId,
+                    user_id: userId,
+                    checkout_at: checkoutAt,
+                    expected_checkin: expectedCheckin
+                }),
+                success: function(response) {
+                    if (response.status === 'error') {
+                        $('#results').append(`<div class="alert alert-danger">${type} failed for asset ID: ${assetId}. Error: ${response.messages}</div>`);
+                    } else {
+                        $('#results').append(`<div class="alert alert-success">${type} successful for asset ID: ${assetId}</div>`);
+                        updateCheckedOutCount(userId); // Update the counter after a successful operation
+                    }
+                },
+                error: function(err) {
+                    console.error(err);
+                    const errorMessage = err.responseJSON ? err.responseJSON.error : 'Unknown error';
+                    $('#results').append(`<div class="alert alert-danger">${type} failed for asset ID: ${assetId}. Error: ${errorMessage}</div>`);
+                }
+            });
+        } else {
+            $('#results').append(`<div class="alert alert-warning">Invalid QR code format.</div>`);
+        }
+
+        $('#qr-code').val('').focus();
+    }
+
+    async function updateCheckedOutCount(userId) {
+        try {
+            const response = await fetch(`${API_URL}/users/${userId}/assets`);
+            const data = await response.json();
+            const count = data.total || data.rows.length;
+            $('#checked-out-count').text(`Assets checked out to this user: ${count}`);
+        } catch (error) {
+            console.error('Error fetching checked-out assets count:', error);
+            $('#checked-out-count').text('Error fetching checked-out assets count');
+        }
+    }
+
+    $('#checkout-button').click(function() {
+        performCheckoutOrCheckin('checkout');
+    });
+
+    $('#qr-code').on('keydown', function(event) {
+        if (event.key === 'Enter') {
+            event.preventDefault();
+            performCheckoutOrCheckin('checkout');
+        }
+    });
+
+    $('#user').change(function() {
+        const userId = $(this).val();
+        if (userId) {
+            updateCheckedOutCount(userId);
+        } else {
+            $('#checked-out-count').text('Select a user to see the checked-out assets count');
+        }
+    });
+
+    fetchUsers();
+    fetchLocations();
+});
     </script>
 </body>
 </html>
