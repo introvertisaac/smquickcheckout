@@ -108,9 +108,9 @@
         });
     }
 
-   function extractAssetId(url) {
+    function extractAssetId(url) {
     console.log('Scanned QR code:', url);
-    url = url.trim(); // Remove leading and trailing whitespace
+    url = url.toLowerCase(); // Convert to lowercase to normalize
     const match = url.match(/\/hardware\/(\d+)/);
     if (match) {
         const assetId = match[1].padStart(5, '0'); // Format to 5-digit asset number
@@ -119,7 +119,8 @@
     }
     console.log('Failed to extract asset ID from QR code');
     return null;
-   }
+}
+
 
 
     function performCheckoutOrCheckin(type) {
