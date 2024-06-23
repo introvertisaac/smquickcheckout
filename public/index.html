@@ -108,17 +108,19 @@
         });
     }
 
-    function extractAssetId(url) {
-        console.log('Scanned QR code:', url);
-        const match = url.match(/\/hardware\/(\d+)/);
-        if (match) {
-            const assetId = match[1].padStart(5, '0'); // Format to 5-digit asset number
-            console.log('Extracted asset ID:', assetId);
-            return assetId;
-        }
-        console.log('Failed to extract asset ID from QR code');
-        return null;
+   function extractAssetId(url) {
+    console.log('Scanned QR code:', url);
+    url = url.trim(); // Remove leading and trailing whitespace
+    const match = url.match(/\/hardware\/(\d+)/);
+    if (match) {
+        const assetId = match[1].padStart(5, '0'); // Format to 5-digit asset number
+        console.log('Extracted asset ID:', assetId);
+        return assetId;
     }
+    console.log('Failed to extract asset ID from QR code');
+    return null;
+   }
+
 
     function performCheckoutOrCheckin(type) {
         const userId = $('#user').val();
